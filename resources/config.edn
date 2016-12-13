@@ -1,0 +1,11 @@
+;; This is just an example.  Do *not* deploy this file as it is.
+
+{:auth
+ {:users {"admin" {:username "admin"
+                  ;; (hs/encrypt "admin") or (creds/hash-bcrypt "admin")
+                  :password "bcrypt+sha512$917b7189e5f29505427f1f982296eb07$12$6b6b2db8482675871a94d061bd72edf6dbdc58f7fc8d8d5c"
+                  :roles #{:admin :user}}
+          "guest" {:username "guest"
+                   ;; (hs/encrypt "guest") or (creds/hash-bcrypt "guest")
+                   :password "bcrypt+sha512$eb574c9bad21f9fb8fe62baa61612c70$12$2fa19a6985bdf3659bc5978e42ab924b0642e2219a1ae4a7"
+                   :roles #{:user}}}}}
