@@ -371,10 +371,14 @@
       (assoc :id id)
       (assoc :board "gulp")))
 
+(defn just-one-space [string]
+  (string/replace string #"\s+" " "))
+
 (defn profile-skills [profile]
-  (string/join " "
-               (map (partial get profile)
-                    [:programming-languages :operating-systems :databases :ipc :standards :strengths])))
+  (->> [:programming-languages :operating-systems :databases :ipc :standards :strengths]
+       (map (partial get profile))
+       (string/join " ")
+       just-one-space))
 
 (defn profile-match [profile patterns]
   (let [skills (profile-skills profile)
