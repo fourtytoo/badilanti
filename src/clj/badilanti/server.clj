@@ -1,6 +1,6 @@
 (ns badilanti.server
   (:require [clojure.java.io :as io]
-            [compojure.core :refer [ANY GET PUT POST DELETE context defroutes]]
+            [compojure.core :refer [ANY GET PUT POST PATCH DELETE context defroutes]]
             [compojure.route :as route]
             [ring.middleware.defaults :refer [wrap-defaults api-defaults site-defaults secure-api-defaults]]
             [ring.middleware.gzip :refer [wrap-gzip]]
@@ -36,32 +36,69 @@
       response/response
       (response/content-type "application/edn")))
 
-(defn profile-response [profile]
-  (edn-response profile))
-
 (defn list-profiles [query]
   (log/debug "list-profiles " query)
-  (log/spy (gulp/search-profiles query nil)))
+  (gulp/search-profile-ids query))
 
-(string/split "cobol" #"\s+")
+(defn find-profiles [query local]
+  (if local
+    (let [[ok? result] (db/search-profiles query)]
+      (if ok?
+        result
+        (throw (ex-info "Query failed" {:result result}))))
+    (->> (list-profiles query)
+         (map gulp/candidate-profile)
+         (gulp/rank-profiles (string/split query #"\s+"))
+         (map #(select-keys % [:id :personal-data :score])))))
 
-(defn find-profiles [query]
-  (log/debug "find-profiles " query)
-  (->> (list-profiles query)
-       (map gulp/candidate-profile)
-       (gulp/rank-profiles (string/split query #"\s+"))
-       (map #(select-keys % [:id :personal-data :match-rank]))))
-
-(defn enqueue-update [id]
+(defn enqueue-update [board id]
   ;; XXX: yet to be done -wcp28/11/16.
   )
 
-(defn profile-response [board id]
+(defn store-profile [profile]
+  (db/put-profile (:board profile) (str (:id profile))
+                  (db/normalise-profile profile)))
+
+;; XXX: -wcp19/12/16.
+(defn test-update-db-profiles []
+  (pmap (comp store-profile gulp/candidate-profile)
+        [134616 173307 60208 11348 129983 159295 131316]))
+
+#_(test-update-db-profiles)
+
+(defn get-profile [board id]
   (if-let [p (db/get-profile board id)]
-    (response/response (:raw-data p))
+    (-> (:raw-profile p)
+        response/response
+        (response/header "Content-Location" (gulp/id->uri id))
+        (response/content-type "text/html"))
     (do
-      (enqueue-update id)
-      (response/redirect (gulp/profile-url id)))))
+      (enqueue-update board id)
+      (response/redirect (gulp/id->uri id)))))
+
+(defn post-profile [board id body]
+  (let [identification {:board board :id id}
+        res (-> (if (string? body)
+                  (gulp/parse-profile-string body)
+                  body)
+                (merge identification)
+                store-profile)]
+    (response/response (assoc identification :result res))))
+
+(defn put-profile [board id body]
+  (post-profile board id body))
+
+(defn patch-profile [board id new-attrs]
+  (let [old (db/get-profile board id)]
+    (if old
+      (post-profile board id (merge old new-attrs))
+      (-> (response/response {:board board :id id :error "Not found"})
+          (response/status 404)))))
+
+(defn delete-profile [board id]
+  (let [[ok? res] (db/delete-profile board id)]
+    (-> (response/response {:board board :id id :result res})
+        (response/status (if ok? 200 404)))))
 
 (defn configure [request]
   (let [{:keys [path value]} (:params request)]
@@ -70,12 +107,20 @@
     (response/response (str path " := " value))))
 
 (defroutes api-routes
-  (GET "/find" [query]
+  (GET "/find" [query local]
        #_(edn-response [{:id 1234 :hourly-rate "lotta" :address "moon" :last-update 0 :personal-data "cool" :board "tavola"}])
-       (edn-response (find-profiles query)))
+       (edn-response (find-profiles query true)))
   (POST "/configure" req configure)
+  (POST "/profile/:board/:id" [board id body]
+        (post-profile board id body))
+  (PUT "/profile/:board/:id" [board id body]
+        (put-profile board id body))
+  (PATCH "/profile/:board/:id" [board id body]
+         (patch-profile board id body))
+  (DELETE "/profile/:board/:id" [board id]
+          (delete-profile board id))
   (GET "/profile/:board/:id" [board id]
-       (profile-response board id)))
+       (get-profile board id)))
 
 (defroutes routes
   (GET "/" _

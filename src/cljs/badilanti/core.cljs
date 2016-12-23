@@ -16,6 +16,7 @@
 
 (defonce auth-token (atom nil))
 (defonce search-string (atom ""))
+(defonce local-search (atom true))
 (defonce profile-list (atom []))
 (defonce current-profile (atom nil))
 
@@ -97,14 +98,13 @@
        (assoc {} :query)
        (rest-get "/api/find")))
 
-(defn fetch-profile-list [search-string]
-  (->> search-string
-       (assoc {} :query)
+(defn fetch-profile-list [search-string locally]
+  (->> {:local locally :query search-string}
        (rest-get "/api/find")))
 
-(defn load-profile-list [query profile-list]
+(defn load-profile-list [query locally profile-list]
   (reset! profile-list (str "Searching for " query " ..."))
-  (go (let [reply (<! (fetch-profile-list query))]
+  (go (let [reply (<! (fetch-profile-list query locally))]
         (if (http-success? reply)
           (reset! profile-list (:body reply))
           (reset! profile-list (str "Query failed with code " (:status reply)))))))
@@ -133,32 +133,47 @@
       (f))))
 
 (defn search-component [auth-token search-string profile-list]
+  (let [submit #(load-profile-list @search-string @local-search profile-list)]
+    [:div {:id "head" :class "search"}
+     [:button {:on-click submit} "search"]
+     [:input {:type "text"
+              :class "entry"
+              :value @search-string
+              :on-key-press (on-enter submit)
+              :on-change (fn [e]
+                           (->> e .-target .-value (reset! search-string)))}]
+     [:input {:type "checkbox"
+              :class "check"
+              :name "local"
+              :value "whatever"
+              ;; :value @local-search
+              :on-change (fn [e] (swap! local-search not))
+              }
+      #_"locally"] "locally"
+     [:img {:src "badilante.png"}]
+     [:a {:on-click #(reset! auth-token nil)}
+      "logout"]]))
+
+(defn login-component [auth-token search-string profile-list]
+  (let [submit #(authenticate auth-token
+                              (input-value "username")
+                              (input-value "password"))]
+    [:div {:id "head" :class "auth"}
+     "username:"
+     [:input {:type "text"
+              :id "username"
+              :on-key-press (on-enter #(focus "password"))}]
+     "password:"
+     [:input {:type "password"
+              :id "password"
+              :on-key-press (on-enter submit)}]
+     [:button {:on-click submit} "enter"]
+     [:img {:src "badilante.png"}]]))
+
+(defn head-component [auth-token search-string profile-list]
   (if @auth-token
-    (let [submit #(load-profile-list @search-string profile-list)]
-      [:div {:id "head"}
-       [:button {:on-click submit} "search"]
-       [:input {:type "text"
-                :value @search-string
-                :on-key-press (on-enter submit)
-                :on-change (fn [e]
-                             (->> e .-target .-value (reset! search-string)))}]
-       [:a {:on-click #(reset! auth-token nil)}
-        "logout"]
-       [:img {:src "badilante.png"}]])
-    (let [submit #(authenticate auth-token
-                                (input-value "username")
-                                (input-value "password"))]
-      [:div {:id "head" :class "auth"}
-       "username:"
-       [:input {:type "text"
-                :id "username"
-                :on-key-press (on-enter #(focus "password"))}]
-       "password:"
-       [:input {:type "password"
-                :id "password"
-                :on-key-press (on-enter submit)}]
-       [:button {:on-click submit} "enter"]
-       [:img {:src "badilante.png"}]])))
+    (search-component auth-token search-string profile-list)
+    (login-component auth-token search-string profile-list)))
 
 (defn profile-component [profile]
   (fn []
@@ -170,8 +185,8 @@
           :else [:iframe {:src (:url @profile)
                           :style {:width "100%" :height "100%"}}])))
 
-(reagent/render [search-component auth-token search-string profile-list]
-                (js/document.getElementById "search-entry"))
+(reagent/render [head-component auth-token search-string profile-list]
+                (js/document.getElementById "head"))
 
 (reagent/render [profile-component current-profile]
                 (js/document.getElementById "profile"))
@@ -210,7 +225,7 @@
                          [:br]
                          (get pd :last-update)]
                         [:td {:style {:width "4em"}}
-                         (:match-rank row)]])))
+                         (:score row)]])))
               striped-rows)]]
        [:span "Enter a search string above"])]))
 

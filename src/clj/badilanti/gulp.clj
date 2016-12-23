@@ -6,8 +6,14 @@
             [onelog.core :as log]
             [badilanti.util :refer :all]
             [badilanti.conf :as conf]
+            [badilanti.db :as db]
             [clojure.java.io :as io]
-            [clj-time.core :as time]))
+            [clj-time.core :as time]
+            [clj-time.coerce])
+  ;; REMOVE -wcp23/12/16.
+  (:import (org.jsoup Jsoup Connection Connection$Method)
+           org.apache.commons.codec.binary.Base64))
+
 
 (defn search-form-url []
   (or (conf/conf :gulp :search-form-url)
@@ -18,7 +24,7 @@
       "https://www.gulp.de/cgi-gulpsearch/FindProfil.exe/Find?V01011711"))
 
 (defn auth-parms []
-  [(conf/conf :boards "gulp" :user)
+  [(conf/conf :boards "gulp" :username)
    (conf/conf :boards "gulp" :password)])
 
 (def cache (make-lru-cache 128))
@@ -36,6 +42,7 @@
 (defn soup-get [uri]
   (soup/get! uri
              :follow-redirects true
+             :base-uri uri
              :auth (apply soup/basic-auth (auth-parms))))
 
 (defn http-post [url & [opts]]
@@ -128,10 +135,9 @@
 (defn extract-search-hits [body]
   (->> body
        (soup/select "a.searchresult[href]")
-       (soup/attr "abs:href")
-       (map uri->id)))
+       (soup/attr "abs:href")))
 
-(defn search-profiles [query zip]
+(defn search-profiles-by-zip [query zip]
   (if zip
     (loop []
       (let [result-uri (launch-profiles-search query zip)]
@@ -149,7 +155,7 @@
                                       extract-search-hits))
                                 (extract-search-continuations page)))))))
     (mapcat (fn [zip]
-              (search-profiles query zip))
+              (search-profiles-by-zip query zip))
             @zip-codes)))
 
 ;; (count (search-profiles "clojure" nil))
@@ -157,16 +163,48 @@
 ;; (launch-profiles-search "clojure" "R5")
 ;; (post-profiles-search "clojure" "R5")
 
-(defn profile-url [id]
+(defn search-profile-ids [query]
+  (-> (search-profiles-by-zip query nil)
+      (map uri->id)))
+
+(defn extract-last-update [body]
+  (->> (if (string? body)
+         (soup/parse body)
+         body)
+       (soup/select "meta[name=date]")
+       (soup/attr "content")
+       first
+       clj-time.format/parse))
+
+(defn file-modtime [file]
+  (clj-time.coerce/from-long (.lastModified (io/file file))))
+
+(defn profile-uptodate? [file body]
+  (time/after? (file-modtime file) (extract-last-update body)))
+
+(defn download-profile [uri]
+  (let [file (str "/tmp/badilanti/" (uri->id uri))
+        profile (:body (http-get uri))]
+    (io/make-parents file)
+    (when-not (profile-uptodate? file profile)
+      (spit file profile))))
+
+(defn download-profiles [query]
+  (->> (search-profiles-by-zip query nil)
+       (pmap download-profile)))
+
+(defn id->uri [id]
   (str "https://www.gulp.de/cgi-gulpsearch/gp.exe/ubprof?" id))
 
 (defn fetch-profile [id]
-  (soup-get (profile-url id)))
+  (soup-get (id->uri id)))
 
-#_(http-get (profile-url 60208))
+;;XXX: -wcp19/12/16.
+(defn test-download-profiles []
+  (pmap (comp download-profile id->uri)
+        [134616 173307 60208 11348 129983 159295 131316]))
 
-(defn get-profile [id]
-  (log/debug "get-profile " id)
+(defn get-profile-document [id]
   (cached cache id (fetch-profile id)))
 
 (defn attr [selector element]
@@ -304,37 +342,48 @@
               (extract-chapter-content chapter)
               chapter))]))
 
-(defn extract-chapters [profile]
+#_(defn insert-base [document base]
+  (-> (soup/select "head" document)
+      first
+      (.children)
+      first
+      (.before "</foo>")))
+
+(defn parse-profile-document [profile]
   (->> profile
        (soup/select (str "div.chapter[id^=" chapter-prefix "]"))
        (map extract-chapter)
        (map (fn [[id chapter]]
               (parse-chapter id chapter)))
-       (into {})))
+       (into {:updated (extract-last-update profile)
+              :raw-profile (.outerHtml profile)
+              })))
+
+(defn parse-profile-string [profile]
+  (-> profile
+      soup/parse
+      parse-profile-document))
 
 (defn candidate-profile [id]
   (-> id
-      get-profile
-      extract-chapters
+      get-profile-document
+      parse-profile-document
       (assoc :id id)
-      (assoc :board :gulp)))
+      (assoc :board "gulp")))
+
+(defn profile-skills [profile]
+  (string/join " "
+               (map (partial get profile)
+                    [:programming-languages :operating-systems :databases :ipc :standards :strengths])))
 
 (defn profile-match [profile patterns]
-  (let [langs (:programming-languages profile)
-        standards (:standards profile)
-        dbs (:databases profile)
-        oss (:operating-systems profile)
-        strengths (:strengths profile)
+  (let [skills (profile-skills profile)
         projects (:projects profile)]
     (->> patterns
          (map (fn [p]
                 (let [p (-> p string/trim string/lower-case)
                       re (re-pattern (str "(?iu)\\b" (-> p re-quote re-wbound) "\\b"))]
-                  (+ (->> [langs dbs oss]
-                          (remove nil?)
-                          (map #(if (re-find re %) 1 0))
-                          (reduce +)
-                          (min 1))
+                  (+ (if (re-find re skills) 1 0)
                      (if projects
                        (* 0.25 (count (re-seq re projects)))
                        0)))))
@@ -343,14 +392,18 @@
 (defn rank-profiles [patterns profiles]
   (->> profiles
        (map (fn [profile]
-              (assoc profile :match-rank (log/spy (profile-match profile patterns)))))
-       (sort-by :match-rank >)))
+              (assoc profile :score (log/spy (profile-match profile patterns)))))
+       (sort-by :score >)))
 
 #_(->> [134616 173307 60208 11348 129983 159295 131316]
        (map candidate-profile)
        (rank-profiles ["cobol" "delphi"])
-       (map (juxt :id :match-rank)))
+       (map (juxt :id :score)))
 
 ;; (candidate-profile 60208)
 ;; (rank-profiles ["cobol"] [(candidate-profile 159988)])
 ;; (rank-profiles ["clojure"] [(candidate-profile 129375)])
+
+(defmethod db/normalise-profile "gulp" [profile]
+  (merge {:skills (profile-skills profile)}
+         (select-keys profile [:personal-data :raw-profile :projects])))
