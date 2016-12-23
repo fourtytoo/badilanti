@@ -145,8 +145,10 @@
 
 (def http-handler
   (-> routes
-      (auth/wrap-authorization auth/session-backend)
-      (auth/wrap-authentication auth/session-backend)
+      #_(auth/wrap-authorization auth/session-backend)
+      #_(auth/wrap-authentication auth/session-backend)
+      (auth/wrap-authorization auth/ejwt-backend)
+      (auth/wrap-authentication auth/ejwt-backend)
       (wrap-defaults api-defaults)
       ring.middleware.session/wrap-session
       (wrap-restful-format :formats [:edn :json-kw])
