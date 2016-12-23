@@ -42,10 +42,7 @@
 
 (defn find-profiles [query local]
   (if local
-    (let [[ok? result] (db/search-profiles query)]
-      (if ok?
-        result
-        (throw (ex-info "Query failed" {:result result}))))
+    (db/search-profiles query)
     (->> (list-profiles query)
          (map gulp/candidate-profile)
          (gulp/rank-profiles (string/split query #"\s+"))

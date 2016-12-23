@@ -3,7 +3,7 @@
 HOST=localhost
 PORT=10555
 
-[ $# -eq 2 ] || {
+[ $# -eq 1 ] || {
     echo "usage: $0 query"
     exit 1
 }

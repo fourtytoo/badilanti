@@ -31,3 +31,11 @@
 
 (defmacro cached [cache key & forms]
   `(call-cached ~cache ~key (fn [] ~@forms)))
+
+(defn as-collection [thing]
+  (if (coll? thing)
+    thing
+    [thing]))
+
+(defn whitespace? [char]
+  (Character/isWhitespace char))

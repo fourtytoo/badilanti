@@ -51,11 +51,9 @@
       (merge {:id _id :board _type} _source))))
 
 (defn clean-query-result [result]
-  (if (esrsp/any-hits? result)
-    [true (map (fn [{:keys [_id _score _type _source]}]
-                 (merge {:id _id :score _score :board _type} _source))
-               (esrsp/hits-from result))]
-    [false result]))
+  (map (fn [{:keys [_id _score _type _source]}]
+         (merge {:id _id :score _score :board _type} _source))
+       (esrsp/hits-from result)))
 
 (defn get-profile [board id]
   (assert (valid-board? board))
@@ -75,29 +73,26 @@
   ([query]
    (search-profiles (seq (all-boards)) query))
   ([board query]
-   (if (seq? board)
-     (assert (every? valid-board? board))
-     (assert (valid-board? board)))
-   (-> (esd/search @conn (index) board
-                   :query {:bool
-                           {:must {:match {:skills query}}
-                            :should {:match {:projects query}}}})
-       clean-query-result)))
-
-#_(search-profiles "perl cobol")
+   (let [boards (as-collection board)]
+     (assert (every? valid-board? boards))
+     (-> (esd/search @conn (index) boards
+                     :query {:bool
+                             {:must {:match {:skills query}}
+                              :should {:match {:projects query}}}})
+         clean-query-result))))
 
 (defn list-profiles
   ([]
-   (list-profiles (all-boards)))
+   (mapcat list-profiles (all-boards)))
   ([board]
-   (if (seq? board)
-     (assert (every? valid-board? board))
-     (assert (valid-board? board)))
+   (assert (valid-board? board))
    (-> (esd/search @conn (index) board)
        clean-query-result)))
 
 #_(esrsp/total-hits (list-profiles "gulp"))
-(list-profiles "gulp")
+#_(->> (list-profiles "gulp")
+     second
+     (map :id))
 
 (defn drop-database []
   (esi/delete @conn))
@@ -105,5 +100,4 @@
 (defmulti normalise-profile
   "Convert a profile to the format used in the database."
   :board)
-
 
