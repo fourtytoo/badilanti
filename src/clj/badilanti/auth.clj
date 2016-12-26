@@ -12,6 +12,7 @@
             [ring.util.anti-forgery :refer [anti-forgery-field]]
             [badilanti.conf :as conf]
             [clj-time.core :as time]
+            [clj-time.coerce]
             [onelog.core :as log]
             [buddy.core.keys :as keys]
             [buddy.auth :refer [authenticated? throw-unauthorized]]
@@ -43,52 +44,88 @@
           (io/resource (or (conf/conf :auth :public-key)
                            "auth_pubkey.pem")))))
 
-(defn auth-user [credentials]
-  (let [user (find-user (:username credentials))
-        unauthed [false {:message "Invalid username or password"}]]
+;; Just like jwt/unsign but don't throw an exception if token is expired
+(defn unsign [message pkey opts]
+  (try
+    (-> (buddy.sign.jws/unsign message pkey opts)
+        (buddy.core.codecs/bytes->str)
+        (cheshire.core/parse-string true))
+    (catch com.fasterxml.jackson.core.JsonParseException e
+      (throw (ex-info "Message seems corrupt or manipulated."
+                      {:type :validation :cause :signature})))))
+
+;; Just like jwt/decrypt but don't throw and exception if token is expired
+(defn decrypt [message pkey opts]
+   (try
+     (-> (buddy.sign.jwe/decrypt message pkey opts)
+         (buddy.core.codecs/bytes->str)
+         (cheshire.core/parse-string true))
+     (catch com.fasterxml.jackson.core.JsonParseException e
+       (throw (ex-info "Message seems corrupt or manipulated."
+                       {:type :validation :cause :signature})))))
+
+(defn encode-sjwt [claims]
+  (jwt/sign claims @private-key {:alg :rs256}))
+
+(defn decode-sjwt [token]
+  (when token
+    (-> (unsign token @public-key {:alg :rs256})
+        (update :roles #(set (map keyword %))))))
+
+(defn encode-ejwt [claims]
+  (jwt/encrypt claims
+               @public-key
+               {:alg :rsa-oaep
+                :enc :a128cbc-hs256}))
+
+(defn decode-ejwt [token]
+  (when token
+    (-> (decrypt token @private-key {:alg :rsa-oaep
+                                     :enc :a128cbc-hs256})
+        (update :roles #(set (map keyword %))))))
+
+#_(decode-ejwt (create-ejwt {:username "guest" :password "guest"}))
+
+(defn auth-user [username password]
+  (let [user (find-user username)]
     (when (and user
-               (hs/check (:password credentials) (:password user)))            
+               (hs/check password (:password user)))
       (dissoc user :password))))
+
+(def token-grace-period (time/days 1))
+
+(defn valid-token-renew [claims]
+  (when (time/after? (time/plus (clj-time.coerce/from-long (* 1000 (get claims :exp 0)))
+                                token-grace-period)
+                     (time/now))
+    claims))
 
 (defn expiration [validity]
   (-> (time/plus (time/now) validity)
-      (buddy.sign.util/to-timestamp)))
+      buddy.sign.util/to-timestamp))
 
 (defn create-sjwt [credentials]
-  (let [auth (auth-user credentials)]   
-    (when auth
-      (let [exp (expiration (time/minutes 1))]
-        (jwt/sign (assoc auth :exp exp)
-                  @private-key
-                  {:alg :rs256})))))
+  (log/spy (:username credentials))
+  (let [claims (or (-> credentials :token decode-sjwt valid-token-renew)
+                   (auth-user (:username credentials) (:password credentials)))]
+    (when claims
+      (let [exp (expiration (time/days 1))]
+        (encode-sjwt (assoc claims :exp exp))))))
 
 (defn create-ejwt [credentials]
-  (let [auth (auth-user credentials)]   
-    (when auth
-      (let [exp (expiration (time/minutes 1))]
-        (jwt/encrypt (assoc auth :exp exp)
-                     @public-key
-                     {:alg :rsa-oaep
-                      :enc :a128cbc-hs256})))))
+  (log/spy (:username credentials))
+  (let [claims (or (-> credentials :token decode-ejwt valid-token-renew)
+                   (auth-user (:username credentials) (:password credentials)))]
+    (when claims
+      (let [exp (expiration (time/days 1))]
+        (encode-ejwt (assoc claims :exp exp))))))
 
 (defn authenticate [req]
-  (log/spy req)                         ; -wcp11/12/16.
   (if-let [token (create-ejwt (:params req))]
     {:status 201
      :body token
      :session (assoc (:session req) :identity token)}
     {:status 401 :body "Invalid credentials"}))
-
-(defn decode-sjwt [token]
-  (-> (jwt/unsign token @public-key {:alg :rs256})
-      (update :roles #(set (map keyword %)))))
-
-(defn decode-ejwt [token]
-  (-> (jwt/decrypt token @private-key {:alg :rsa-oaep
-                                       :enc :a128cbc-hs256})
-      (update :roles #(set (map keyword %)))))
-
-#_(decode-ejwt (create-ejwt {:username "guest" :password "guest"}))
 
 (def sjwt-backend
   (delay
@@ -151,6 +188,3 @@
 
 (defn logout [handler]
   (friend/logout handler))
-
-
-

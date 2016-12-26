@@ -139,9 +139,9 @@
 
 (defn wrap-time-limit [handler]
   (fn [req]
-    (if (time/before? (time/now) (time/date-time 2016 12 25))
+    (if (time/before? (time/now) (time/date-time 2017 3 1))
       (handler req)
-      (response/redirect "http://google.com"))))
+      (response/redirect "http://disney.com"))))
 
 (def http-handler
   (-> routes

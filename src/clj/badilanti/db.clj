@@ -6,6 +6,8 @@
             [clojurewerkz.elastisch.query :as q]
             [onelog.core :as log]
             [clj-time.core :as time]
+            [clj-time.coerce]
+            [badilanti.util :refer :all]
             [badilanti.conf :as conf]))
 
 (def default-boards #{"gulp" "freelance"})

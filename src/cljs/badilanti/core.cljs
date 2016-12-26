@@ -37,16 +37,35 @@
          (http/get url))
     chan))
 
-(defn add-auth [op params]
-  (op (assoc params :oauth-token @auth-token)))
+(defn fetch-auth-token
+  ([username password]
+   (http/post "/authenticate" {:edn-params
+                               {:username username
+                                :password password}}))
+  ([token]
+   (http/post "/authenticate" {:edn-params
+                               {:token token}})))
+
+(defn authenticate [token username password]
+  (go (let [reply (<! (fetch-auth-token username password))]
+        (if (http-success? reply)
+          (reset! token (:body reply))
+          ;; FIXME: must warn the user -wcp7/12/16.
+          (reset! token nil)))))
+
+#_(defn renew-token [token]
+  (when token
+    (go (let [reply (<! (fetch-auth-token token))]
+          (if (http-success? reply)
+            (:body reply))))))
 
 (defn wrap-auth-proto [client request]
   (let [request' (assoc request :oauth-token @auth-token)]
     (async/map (fn [reply]
                  (let [{:keys [status success] :as answer} reply]
-                   (println "reply=" reply) ; -wcp11/12/16.
                    (if (or (= status 401)
                            (= status 403))
+                     ;; (swap! auth-token renew-token)
                      (reset! auth-token nil)
                      ;; if new token, update internally
                      (when-let [token (get-in reply [:body :token])]
@@ -108,18 +127,6 @@
         (if (http-success? reply)
           (reset! profile-list (:body reply))
           (reset! profile-list (str "Query failed with code " (:status reply)))))))
-
-(defn fetch-auth-token [username password]
-  (rest-post "/authenticate"
-             {:username username :password password}))
-
-(defn authenticate [token username password]
-  (go (let [reply (<! (fetch-auth-token username password))]
-        (if (http-success? reply)
-          (reset! auth-token (:body reply))
-          ;; FIXME: must warn the user -wcp7/12/16.
-          (reset! auth-token nil)))))
-
 
 (defn input-value [id]
   (-> id js/document.getElementById .-value))
