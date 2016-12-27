@@ -100,25 +100,31 @@
                      (time/now))
     claims))
 
-(defn expiration [validity]
-  (-> (time/plus (time/now) validity)
-      buddy.sign.util/to-timestamp))
+(defn standard-claims [validity]
+  (let [now (time/now)]
+    {:iat (buddy.sign.util/to-timestamp now)
+     :exp (-> (time/plus now validity)
+              buddy.sign.util/to-timestamp)}))
 
 (defn create-sjwt [credentials]
   (log/spy (:username credentials))
   (let [claims (or (-> credentials :token decode-sjwt valid-token-renew)
                    (auth-user (:username credentials) (:password credentials)))]
     (when claims
-      (let [exp (expiration (time/days 1))]
-        (encode-sjwt (assoc claims :exp exp))))))
+      (-> (time/days 1)
+          standard-claims
+          (merge claims)
+          encode-sjwt))))
 
 (defn create-ejwt [credentials]
   (log/spy (:username credentials))
   (let [claims (or (-> credentials :token decode-ejwt valid-token-renew)
                    (auth-user (:username credentials) (:password credentials)))]
     (when claims
-      (let [exp (expiration (time/days 1))]
-        (encode-ejwt (assoc claims :exp exp))))))
+      (-> (time/days 1)
+          standard-claims
+          (merge claims)
+          encode-ejwt))))
 
 (defn authenticate [req]
   (if-let [token (create-ejwt (:params req))]
