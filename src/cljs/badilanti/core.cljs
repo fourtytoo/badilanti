@@ -101,16 +101,18 @@
     (timef/unparse time-formatter time)
     ""))
 
-(defn fetch-profile [id]
-  (rest-get "/api/profile" {:id id :content-type :plain}))
+(defn fetch-profile [board id]
+  (rest-get (str "/api/profile/" board "/" id) {}))
 
-(defn load-profile [id profile]
-  (reset! profile (str "Loading " id " ..."))
-  (->> (fetch-profile id)
+(defn load-profile [board id atom]
+  (reset! atom (str "Loading " id " ..."))
+  (->> (fetch-profile board id)
        <!
        :body
-       (reset! profile)
+       (reset! atom)
        go))
+
+#_(go (println (<! (fetch-profile "gulp" 11348))))
 
 #_(defn fetch-profile-list [search-string]
   (->> (string/split search-string #"\s+")
@@ -184,13 +186,9 @@
 
 (defn profile-component [profile]
   (fn []
-    (cond (nil? @profile) [:div]
-
-          (string? @profile) [:iframe {:src @profile
-                                       :style {:width "100%" :height "100%"}}]
-
-          :else [:iframe {:src (:url @profile)
-                          :style {:width "100%" :height "100%"}}])))
+    (let [p @profile]
+      (cond (nil? p) [:div]
+            :else [:iframe {:src p :class "profile"}]))))
 
 (reagent/render [head-component auth-token search-string profile-list]
                 (js/document.getElementById "head"))
@@ -222,8 +220,10 @@
                         [:td
                          [:img {:src (or (get pd :photo) "dummy-photo.png")
                                 :style {:height "5em"}}]]
-                        [:td {:on-click #(js/open (str  "/api/profile/" (:board row)
-                                                        "/" (:id row)))}
+                        [:td {:on-click
+                              ;; #(load-profile (:board row) (:id row) current-profile)
+                              ;; #(js/open (str  "/profile-redirection/" (:board row) "/" (:id row)))
+                              #(reset! current-profile (str  "/profile-redirection/" (:board row) "/" (:id row)))}
                          (:id pd)
                          [:br]
                          (get pd :hourly-rate)
