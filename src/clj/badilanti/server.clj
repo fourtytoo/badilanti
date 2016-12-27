@@ -63,15 +63,17 @@
 
 #_(test-update-db-profiles)
 
+(defn profile-redirection [board id]
+  (enqueue-update board id)
+  (response/redirect (gulp/id->uri id)))
+
 (defn get-profile [board id]
   (if-let [p (db/get-profile board id)]
     (-> (:raw-profile p)
         response/response
         (response/header "Content-Location" (gulp/id->uri id))
         (response/content-type "text/html"))
-    (do
-      (enqueue-update board id)
-      (response/redirect (gulp/id->uri id)))))
+    (profile-redirection board id)))
 
 (defn post-profile [board id body]
   (let [identification {:board board :id id}
@@ -132,6 +134,8 @@
                #_auth/wrap-authorization
                #_wrap-auth-token
                ))
+  (GET "/profile-redirection/:board/:id" [board id]
+       (profile-redirection board id))
   (auth/logout (ANY "/logout" _ (response/redirect "/")))
   ;; this will serve the css style files and all the rest
   (route/resources "/")
