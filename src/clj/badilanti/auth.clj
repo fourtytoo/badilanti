@@ -104,7 +104,9 @@
   (let [now (time/now)]
     {:iat (buddy.sign.util/to-timestamp now)
      :exp (-> (time/plus now validity)
-              buddy.sign.util/to-timestamp)}))
+              buddy.sign.util/to-timestamp)
+     :jti (buddy.core.codecs/bytes->hex
+           (buddy.core.nonce/random-nonce 32))}))
 
 (defn create-sjwt [credentials]
   (log/spy (:username credentials))
