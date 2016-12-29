@@ -71,7 +71,6 @@
   (if-let [p (db/get-profile board id)]
     (-> (:raw-profile p)
         response/response
-        (response/header "Content-Location" (gulp/id->uri id))
         (response/content-type "text/html"))
     (profile-redirection board id)))
 
@@ -104,6 +103,10 @@
     (log/info "configuration path " path " changed to: " value)
     (conf/configure! path value)
     (response/response (str path " := " value))))
+
+(defn wrap-token-refresh [handler]
+  (fn [req]
+    (auth/refresh-req-token req (handler req))))
 
 (defroutes api-routes
   (GET "/find" [query local]
@@ -153,6 +156,7 @@
       #_(auth/wrap-authentication auth/session-backend)
       (auth/wrap-authorization auth/ejwt-backend)
       (auth/wrap-authentication auth/ejwt-backend)
+      wrap-token-refresh
       (wrap-defaults api-defaults)
       ring.middleware.session/wrap-session
       (wrap-restful-format :formats [:edn :json-kw])

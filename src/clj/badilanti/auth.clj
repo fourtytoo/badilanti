@@ -128,12 +128,22 @@
           (merge claims)
           encode-ejwt))))
 
+(defn refresh-ejwt [token]
+  (-> (time/minutes (or (conf/conf :session-expiration) 1))
+      standard-claims
+      (merge (decode-ejwt token))
+      encode-ejwt))
+
+(defn refresh-token [token]
+  (refresh-ejwt token))
+
 (defn authenticate [req]
   (if-let [token (create-ejwt (:params req))]
     {:status 201
-     :body token
-     :session (assoc (:session req) :identity token)}
-    {:status 401 :body "Invalid credentials"}))
+     ;; :session (assoc (:session req) :identity token)
+     :body token}
+    {:status 401
+     :body "Invalid credentials"}))
 
 (def sjwt-backend
   (delay
@@ -151,6 +161,16 @@
                   :token-name "Bearer"
                   :options {:alg :rsa-oaep
                             :enc :a128cbc-hs256}})))
+
+(defn req-token [req]
+  (buddy.auth.protocols/-parse @ejwt-backend req))
+
+(defn refresh-req-token [req response]
+  (let [token (req-token req)]
+    (if (map? (:body response))
+      (assoc-in response [:body :token] (refresh-token token))
+      ;; do not add a token if response is not a map
+      response)))
 
 (def session-backend
   (delay
