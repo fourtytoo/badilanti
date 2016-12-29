@@ -127,7 +127,7 @@
   (reset! profile-list (str "Searching for " query " ..."))
   (go (let [reply (<! (fetch-profile-list query locally))]
         (if (http-success? reply)
-          (reset! profile-list (:body reply))
+          (reset! profile-list (-> reply :body :hits))
           (reset! profile-list (str "Query failed with code " (:status reply)))))))
 
 (defn input-value [id]
