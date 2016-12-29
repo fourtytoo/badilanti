@@ -9,10 +9,7 @@
             [badilanti.db :as db]
             [clojure.java.io :as io]
             [clj-time.core :as time]
-            [clj-time.coerce])
-  ;; REMOVE -wcp23/12/16.
-  (:import (org.jsoup Jsoup Connection Connection$Method)
-           org.apache.commons.codec.binary.Base64))
+            [clj-time.coerce]))
 
 
 (defn search-form-url []
@@ -332,13 +329,6 @@
               (extract-chapter-content chapter)
               chapter))]))
 
-#_(defn insert-base [document base]
-  (-> (soup/select "head" document)
-      first
-      (.children)
-      first
-      (.before "</foo>")))
-
 (defn parse-profile-document [profile]
   (->> profile
        (soup/select (str "div.chapter[id^=" chapter-prefix "]"))
@@ -388,11 +378,6 @@
        (map (fn [profile]
               (assoc profile :score (log/spy (profile-match profile patterns)))))
        (sort-by :score >)))
-
-#_(->> [134616 173307 60208 11348 129983 159295 131316]
-       (map candidate-profile)
-       (rank-profiles ["cobol" "delphi"])
-       (map (juxt :id :score)))
 
 ;; (candidate-profile 60208)
 ;; (rank-profiles ["cobol"] [(candidate-profile 159988)])
