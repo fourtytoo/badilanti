@@ -41,7 +41,7 @@
                                    :index "not_analyzed"}}}}))
 
 (defn put-profile [board id data]
-  (esd/put @conn (index) board id data))
+  (esd/put @conn (index) board (str id) data))
 
 #_(put-profile "gulp" "foo" {:raw-data "bar"})
 #_(put-profile "gulp" "bar" {:raw-data "foo"})
