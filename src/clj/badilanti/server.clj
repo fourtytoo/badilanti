@@ -61,8 +61,6 @@
   (pmap (comp store-profile gulp/candidate-profile)
         [134616 173307 60208 11348 129983 159295 131316]))
 
-#_(test-update-db-profiles)
-
 (defn profile-redirection [board id]
   (enqueue-update board id)
   (response/redirect (gulp/id->uri id)))
@@ -126,9 +124,6 @@
 (defroutes routes
   (GET "/" _
        (response/redirect "/index.html"))
-  ;; this route is required by Friend -wcp6/12/16.
-  #_(GET "/login" _
-       (response/redirect "/login.html"))
   (POST "/authenticate" req auth/authenticate)
   (context "/api" [token]
            (-> api-routes
@@ -159,8 +154,6 @@
       (wrap-defaults api-defaults)
       ring.middleware.session/wrap-session
       (wrap-restful-format :formats [:edn :json-kw])
-      #_(auth/authenticate-basic)
-      #_(auth/authenticate-form)
       wrap-time-limit
       #_wrap-stacktrace
       wrap-content-type

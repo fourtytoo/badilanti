@@ -84,8 +84,6 @@
                                      :enc :a128cbc-hs256})
         (update :roles #(set (map keyword %))))))
 
-#_(decode-ejwt (create-ejwt {:username "guest" :password "guest"}))
-
 (defn auth-user [username password]
   (let [user (find-user username)]
     (when (and user

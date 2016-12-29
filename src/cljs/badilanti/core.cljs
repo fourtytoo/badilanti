@@ -30,13 +30,6 @@
   (when (http-success? reply)
     (:body reply)))
 
-#_(defn rest-get [url parms]
-  (let [chan (async/chan 1 (map reply-body))]
-    (->> parms
-         (assoc {:channel chan} :query-params)
-         (http/get url))
-    chan))
-
 (defn fetch-auth-token
   ([username password]
    (http/post "/authenticate" {:edn-params
@@ -53,12 +46,6 @@
           ;; FIXME: must warn the user -wcp7/12/16.
           (reset! token nil)))))
 
-#_(defn renew-token [token]
-  (when token
-    (go (let [reply (<! (fetch-auth-token token))]
-          (if (http-success? reply)
-            (:body reply))))))
-
 (defn wrap-auth-proto [client request]
   (let [request' (assoc request :oauth-token @auth-token)]
     (async/map (fn [reply]
@@ -72,18 +59,6 @@
                        (reset! auth-token token))))
                  reply)
                [(client request')])))
-
-;; (http/request (merge req {:method :get :url url}))
-
-#_(defn rest-request [method url req]
-  (async/map (fn [reply]
-               (let [{:keys [status success] :as answer} reply]
-                 (when (= 4 (quot status 100))
-                   (reset! auth-token nil)))
-               reply)
-   [(http/request (merge req {:method method
-                              :url url
-                              :oauth-token @auth-token}))]))
 
 (defn rest-get [url parms]
   (wrap-auth-proto (partial http/get url)
@@ -111,13 +86,6 @@
        :body
        (reset! atom)
        go))
-
-#_(go (println (<! (fetch-profile "gulp" 11348))))
-
-#_(defn fetch-profile-list [search-string]
-  (->> (string/split search-string #"\s+")
-       (assoc {} :query)
-       (rest-get "/api/find")))
 
 (defn fetch-profile-list [search-string locally]
   (->> {:local locally :query search-string}
@@ -157,8 +125,8 @@
               :value "whatever"
               ;; :value @local-search
               :on-change (fn [e] (swap! local-search not))
-              }
-      #_"locally"] "locally"
+              }]
+     "locally"
      [:img {:src "badilante.png"}]
      [:a {:on-click #(reset! auth-token nil)}
       "logout"]]))
