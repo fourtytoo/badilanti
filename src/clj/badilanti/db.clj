@@ -43,10 +43,6 @@
 (defn put-profile [board id data]
   (esd/put @conn (index) board (str id) data))
 
-#_(put-profile "gulp" "foo" {:raw-data "bar"})
-#_(put-profile "gulp" "bar" {:raw-data "foo"})
-#_(put-profile "freelance" "bar" {:raw-data "foobar"})
-
 (defn clean-profile-result [result]
   (when (:found result)
     (let [{:keys [_id _type _source]} result]
@@ -62,14 +58,10 @@
   (-> (esd/get @conn (index) board (str id))
       clean-profile-result))
 
-#_(get-profile "freelance" "bar")
-
 (defn delete-profile [board id]
   (assert (valid-board? board))
   (let [res (esd/delete @conn (index) board (str id))]
     [(:found res) res]))
-
-#_(delete-profile "gulp" "bar")
 
 (defn search-profiles
   ([query]
@@ -90,8 +82,6 @@
    (assert (valid-board? board))
    (-> (esd/search @conn (index) board)
        clean-query-result)))
-
-#_(esrsp/total-hits (list-profiles "gulp"))
 
 (defn drop-database []
   (esi/delete @conn))
