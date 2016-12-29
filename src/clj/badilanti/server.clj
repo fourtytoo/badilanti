@@ -32,7 +32,7 @@
   (:gen-class))
 
 (defn edn-response [body]
-  (-> (pr-str body)
+  (-> body
       response/response
       (response/content-type "application/edn")))
 
