@@ -155,11 +155,6 @@
               (search-profiles-by-zip query zip))
             @zip-codes)))
 
-;; (count (search-profiles "clojure" nil))
-;; (count (search-profiles "java" nil))
-;; (launch-profiles-search "clojure" "R5")
-;; (post-profiles-search "clojure" "R5")
-
 (defn search-profile-ids [query]
   (-> (search-profiles-by-zip query nil)
       (map uri->id)))
@@ -360,29 +355,6 @@
        (map (partial get profile))
        (string/join " ")
        clean-text))
-
-(defn profile-match [profile patterns]
-  (let [skills (profile-skills profile)
-        projects (-> profile :projects clean-text)]
-    (->> patterns
-         (map (fn [p]
-                (let [p (-> p string/trim string/lower-case)
-                      re (re-pattern (str "(?iu)\\b" (-> p re-quote re-wbound) "\\b"))]
-                  (+ (if (re-find re skills) 1 0)
-                     (if projects
-                       (* 0.25 (count (re-seq re projects)))
-                       0)))))
-         (reduce +))))
-
-(defn rank-profiles [patterns profiles]
-  (->> profiles
-       (map (fn [profile]
-              (assoc profile :score (log/spy (profile-match profile patterns)))))
-       (sort-by :score >)))
-
-;; (candidate-profile 60208)
-;; (rank-profiles ["cobol"] [(candidate-profile 159988)])
-;; (rank-profiles ["clojure"] [(candidate-profile 129375)])
 
 (defmethod db/normalise-profile "gulp" [profile]
   (merge {:skills (profile-skills profile)
