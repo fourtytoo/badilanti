@@ -173,9 +173,34 @@
 (defn profile-uptodate? [file body]
   (time/after? (file-modtime file) (extract-last-update body)))
 
+(defn id->url [id]
+  (if (url? id)
+    id
+    (io/as-url (str "https://www.gulp.de/cgi-gulpsearch/gp.exe/ubprof?" id))))
+
+(defn base-uri [doc]
+  (.baseUri doc))
+
+(defn document-clone [doc]
+  (.clone doc))
+
+(defn add-base [doc]
+  (let [base (base-uri doc)]
+    (if (empty? (soup/select "base" doc))
+      (let [doc' (document-clone doc)]
+        (-> (soup/select "head" doc')
+            first
+            (.prependElement "base")
+            (.attr "href" base))
+        doc')
+      doc)))
+
+(defn fetch-profile [id-or-url]
+  (-> id-or-url id->url soup-get add-base))
+
 (defn download-profile [uri]
   (let [file (str "/tmp/badilanti/" (uri->id uri))
-        profile (:body (http-get uri))]
+        profile (fetch-profile uri)]
     (io/make-parents file)
     (when-not (profile-uptodate? file profile)
       (spit file profile))))
@@ -184,15 +209,9 @@
   (->> (search-profiles-by-zip query nil)
        (pmap download-profile)))
 
-(defn id->uri [id]
-  (str "https://www.gulp.de/cgi-gulpsearch/gp.exe/ubprof?" id))
-
-(defn fetch-profile [id]
-  (soup-get (id->uri id)))
-
 (defn get-profile-document [id]
   (cached cache id
-          (convert-links-to-URLs! (fetch-profile id))))
+          (fetch-profile id)))
 
 (defn extract-chapter-content [chapter]
   (->> chapter

@@ -63,7 +63,7 @@
 
 (defn profile-redirection [board id]
   (enqueue-update board id)
-  (response/redirect (gulp/id->uri id)))
+  (response/redirect (gulp/id->url id)))
 
 (defn get-profile [board id]
   (if-let [p (db/get-profile board id)]
