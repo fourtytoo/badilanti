@@ -44,7 +44,8 @@
                   :exclusions [reagent/reagent
                                cljsjs/react]]
                  #_[com.novemberain/monger "3.1.0"]
-                 [org.clojure/core.cache "0.6.4"]]
+                 [org.clojure/core.cache "0.6.4"]
+                 [pathetic "0.5.1"]]
 
   :plugins [[lein-cljsbuild "1.1.3"]
             [lein-environ "1.0.3"]

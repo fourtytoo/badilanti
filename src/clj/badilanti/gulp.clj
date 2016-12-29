@@ -351,18 +351,19 @@
       (assoc :id id)
       (assoc :board "gulp")))
 
-(defn just-one-space [string]
-  (string/replace string #"\s+" " "))
+(defn clean-text [text]
+  ;;TODO: should we also remove punctuation and numbers? -wcp29/12/16.
+  (just-one-space text))
 
 (defn profile-skills [profile]
   (->> [:programming-languages :operating-systems :databases :ipc :standards :strengths]
        (map (partial get profile))
        (string/join " ")
-       just-one-space))
+       clean-text))
 
 (defn profile-match [profile patterns]
   (let [skills (profile-skills profile)
-        projects (:projects profile)]
+        projects (-> profile :projects clean-text)]
     (->> patterns
          (map (fn [p]
                 (let [p (-> p string/trim string/lower-case)
@@ -384,5 +385,8 @@
 ;; (rank-profiles ["clojure"] [(candidate-profile 129375)])
 
 (defmethod db/normalise-profile "gulp" [profile]
-  (merge {:skills (profile-skills profile)}
-         (select-keys profile [:personal-data :raw-profile :projects])))
+  (merge {:skills (profile-skills profile)
+          :projects (-> profile :projects clean-text)}
+         (select-keys profile [:personal-data :raw-profile])))
+
+
