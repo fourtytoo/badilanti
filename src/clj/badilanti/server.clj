@@ -132,7 +132,8 @@
                #_wrap-auth-token
                ))
   (GET "/profile-redirection/:board/:id" [board id]
-       (profile-redirection board id))
+       (get-profile board id)
+       #_(profile-redirection board id))
   (auth/logout (ANY "/logout" _ (response/redirect "/")))
   ;; this will serve the css style files and all the rest
   (route/resources "/")
@@ -149,7 +150,7 @@
       #_(auth/wrap-authorization auth/session-backend)
       #_(auth/wrap-authentication auth/session-backend)
       (auth/wrap-authorization auth/ejwt-backend)
-      (auth/wrap-authentication auth/ejwt-backend)
+      (auth/wrap-authentication auth/ejwt-backend auth/session-backend)
       wrap-token-refresh
       (wrap-defaults api-defaults)
       ring.middleware.session/wrap-session

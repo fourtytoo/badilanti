@@ -44,6 +44,9 @@
 (defn whitespace? [char]
   (Character/isWhitespace char))
 
+(defn url? [thing]
+  (instance? java.net.URL thing))
+
 (defn uri-resolve
   "Behaves like resolve on the path part of a URI. If URI happens to
   be already a URL it is returned as it is.  The path is not

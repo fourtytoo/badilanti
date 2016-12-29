@@ -138,7 +138,7 @@
 (defn authenticate [req]
   (if-let [token (create-ejwt (:params req))]
     {:status 201
-     ;; :session (assoc (:session req) :identity token)
+     :session (assoc (:session req) :identity token)
      :body token}
     {:status 401
      :body "Invalid credentials"}))
@@ -174,8 +174,12 @@
   (delay
    (backends/session)))
 
-(defn wrap-authentication [handler backend]
-  (midware/wrap-authentication handler @backend))
+(defn wrap-authentication [handler & backends]
+  (apply midware/wrap-authentication handler
+         (map (fn [be] (if (delay? be)
+                         @be
+                         be))
+              backends)))
 
 (defn wrap-authorization [handler backend]
   (midware/wrap-authorization handler @backend))

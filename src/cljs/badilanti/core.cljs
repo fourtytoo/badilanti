@@ -80,7 +80,7 @@
   (rest-get (str "/api/profile/" board "/" id) {}))
 
 (defn load-profile [board id atom]
-  (reset! atom (str "Loading " id " ..."))
+  ;; (reset! atom (str "Loading " id " ..."))
   (->> (fetch-profile board id)
        <!
        :body
@@ -152,11 +152,13 @@
     (search-component auth-token search-string profile-list)
     (login-component auth-token search-string profile-list)))
 
-(defn profile-component [profile]
+(defn profile-component [current-profile]
   (fn []
-    (let [p @profile]
-      (cond (nil? p) [:div]
-            :else [:iframe {:src p :class "profile"}]))))
+    (let [p @current-profile]
+      (if (nil? p)
+        [:div]
+        [:iframe {:src (str "/api/profile/" (:board p) "/" (:id p))
+                  :class "profile"}]))))
 
 (reagent/render [head-component auth-token search-string profile-list]
                 (js/document.getElementById "head"))
@@ -171,7 +173,7 @@
          (into [tr (assoc attrs :class cl)] rest))
        rows (cycle ["odd" "even"])))
 
-(defn profile-list-component [profile-list]
+(defn profile-list-component [profile-list current-profile]
   (if (string? @profile-list)
     [:div [:span @profile-list]]
     [:div {:class "list"}
@@ -191,7 +193,8 @@
                         [:td {:on-click
                               ;; #(load-profile (:board row) (:id row) current-profile)
                               ;; #(js/open (str  "/profile-redirection/" (:board row) "/" (:id row)))
-                              #(reset! current-profile (str  "/profile-redirection/" (:board row) "/" (:id row)))}
+                              #(reset! current-profile row)
+                              }
                          (:id pd)
                          [:br]
                          (get pd :hourly-rate)
@@ -204,5 +207,5 @@
               striped-rows)]]
        [:span "Enter a search string above"])]))
 
-(reagent/render [profile-list-component profile-list]
+(reagent/render [profile-list-component profile-list current-profile]
                 (js/document.getElementById "profile-list"))
