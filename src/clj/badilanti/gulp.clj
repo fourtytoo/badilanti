@@ -36,10 +36,9 @@
                         :basic-auth (auth-parms)}))
       deref))
 
-(defn soup-get [uri]
-  (soup/get! uri
+(defn soup-get [url]
+  (soup/get! (str url)
              :follow-redirects true
-             :base-uri uri
              :auth (apply soup/basic-auth (auth-parms))))
 
 (defn http-post [url & [opts]]
