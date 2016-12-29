@@ -199,8 +199,8 @@
                          (get pd :address)
                          [:br]
                          (get pd :last-update)]
-                        [:td {:style {:width "4em"}}
-                         (:score row)]])))
+                        [:td {:class "number"}
+                         (re-find #"\d+\.\d\d" (str (* 100 (:score row)) 1))]])))
               striped-rows)]]
        [:span "Enter a search string above"])]))
 

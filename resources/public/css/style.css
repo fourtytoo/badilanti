@@ -124,8 +124,9 @@ div.list table tr td img {
     border:1px solid #a78;	/* #021a40 */
 }
 
-div.list table tr td:nth-child(3) {
+div.list table tr td.number {
     text-align: right;
+    font-family: monospace;
 }
 
 iframe.profile {
