@@ -195,21 +195,6 @@
   (cached cache id
           (convert-links-to-URLs! (fetch-profile id))))
 
-(defn extract-table-columns [row]
-  (->> row
-       (soup/select "td")
-       soup/text
-       (map string/lower-case)))
-
-(defn extract-skilltable [chapter]
-  (let [table (soup/select "table.skilltable" chapter)]
-    (when-not (empty? table)
-      (->> table
-           (soup/select "tr")
-           (map extract-table-columns)
-           (map vec)
-           #_(into {})))))
-
 (defn extract-chapter-content [chapter]
   (->> chapter
        (soup/select "div.chapter_content")
@@ -320,8 +305,7 @@
   (let [parse (parsers id)]
     [id (if parse
           (parse chapter)
-          (or #_(extract-skilltable chapter)
-              (extract-chapter-content chapter)
+          (or (extract-chapter-content chapter)
               chapter))]))
 
 (defn parse-profile-document [profile]
