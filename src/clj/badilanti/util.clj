@@ -1,5 +1,9 @@
 (ns badilanti.util
-  (:require [clojure.core.cache :as cache]))
+  (:require [clojure.core.cache :as cache]
+            [jsoup.soup :as soup]
+            [pathetic.core :as path]
+            [clojure.string :as string]
+            [clojure.java.io :as io]))
 
 (defn show [thing]
   (clojure.pprint/pprint thing)
@@ -39,3 +43,22 @@
 
 (defn whitespace? [char]
   (Character/isWhitespace char))
+
+(defn attr-update! [element attr-key f]
+  (attr attr-key element
+        (f (attr attr-key element))))
+
+#_(defn convert-links-to-URLs! [doc base]
+  (run! #(attr-update! % "href" (partial uri-complete base))
+        (soup/select "[href]" doc))
+  (run! #(attr-update! % "src" (partial uri-complete base))
+        (soup/select "[src]" doc))
+  doc)
+
+(defn convert-links-to-URLs! [doc]
+  (run! #(attr "href" % (attr "abs:href" %))
+        (soup/select "[href]" doc))
+  (run! #(attr "src" % (attr "abs:src" %))
+        (soup/select "[src]" doc))
+  doc)
+

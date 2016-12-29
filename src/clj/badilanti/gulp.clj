@@ -199,19 +199,9 @@
 (defn fetch-profile [id]
   (soup-get (id->uri id)))
 
-;;XXX: -wcp19/12/16.
-(defn test-download-profiles []
-  (pmap (comp download-profile id->uri)
-        [134616 173307 60208 11348 129983 159295 131316]))
-
 (defn get-profile-document [id]
-  (cached cache id (fetch-profile id)))
-
-(defn attr [selector element]
-  (.attr element selector))
-
-(defn text [element]
-  (.text element))
+  (cached cache id
+          (convert-links-to-URLs! (fetch-profile id))))
 
 (defn extract-table-columns [row]
   (->> row
