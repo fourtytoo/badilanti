@@ -40,13 +40,16 @@
   (log/debug "list-profiles " query)
   (gulp/search-profile-ids query))
 
-(defn find-profiles [query local]
+#_(defn find-profiles [query local]
   (if local
     (db/search-profiles query)
     (->> (list-profiles query)
          (map gulp/candidate-profile)
          (gulp/rank-profiles (string/split query #"\s+"))
          (map #(select-keys % [:id :personal-data :score])))))
+
+(defn find-profiles [query local]
+  (db/search-profiles query))
 
 (defn enqueue-update [board id]
   ;; XXX: yet to be done -wcp28/11/16.
