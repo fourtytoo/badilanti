@@ -92,9 +92,6 @@
        clean-query-result)))
 
 #_(esrsp/total-hits (list-profiles "gulp"))
-#_(->> (list-profiles "gulp")
-     second
-     (map :id))
 
 (defn drop-database []
   (esi/delete @conn))
