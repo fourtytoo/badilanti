@@ -99,11 +99,12 @@ div.list table {
 }
 
 div.list td {
-    padding: 0.5ex;
+    padding-left: 0.5ex;
+    padding-right: 0.5ex;
 }
 
 div.list tr {
-    padding: 0.5ex;
+    /* padding: 0.5ex; */
 }
 
 div.list tr.odd {
