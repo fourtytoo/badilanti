@@ -110,8 +110,7 @@
 
 (defroutes api-routes
   (GET "/find" [query local]
-       #_(edn-response [{:id 1234 :hourly-rate "lotta" :address "moon" :last-update 0 :personal-data "cool" :board "tavola"}])
-       (edn-response (find-profiles query true)))
+       (edn-response {:hits (find-profiles query true)}))
   (POST "/configure" req configure)
   (POST "/profile/:board/:id" [board id body]
         (post-profile board id body))
