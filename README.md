@@ -1,5 +1,16 @@
 # badilanti
 
+Proof of concept for a meta-search engine for freelancers on multiple
+professional job boards.  Think of Indeed.com for hiring companies.
+Profiles are scraped from online services into a local Elasticsearch
+instance.  Searches are performed locally.
+
+It goes without saying that you first need an account on those job
+boards.  Have a look at `resources/config.edn` for more details.
+
+Currently the only search engine supported is the German Gulp.
+
+
 
 ## Development
 
