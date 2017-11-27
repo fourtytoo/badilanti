@@ -8,4 +8,6 @@
           "guest" {:username "guest"
                    ;; (hs/encrypt "guest") or (creds/hash-bcrypt "guest")
                    :password "bcrypt+sha512$eb574c9bad21f9fb8fe62baa61612c70$12$2fa19a6985bdf3659bc5978e42ab924b0642e2219a1ae4a7"
-                   :roles #{:user}}}}}
+                   :roles #{:user}}}}
+ :boards {"gulp" {:username "user"
+                  :password "password"}}}
