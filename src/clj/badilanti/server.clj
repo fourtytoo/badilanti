@@ -142,12 +142,6 @@
   (route/resources "/")
   (route/not-found "Not Found"))
 
-(defn wrap-time-limit [handler]
-  (fn [req]
-    (if (time/before? (time/now) (time/date-time 2017 3 1))
-      (handler req)
-      (response/redirect "http://disney.com"))))
-
 (def http-handler
   (-> routes
       #_(auth/wrap-authorization auth/session-backend)
@@ -158,7 +152,6 @@
       (wrap-defaults api-defaults)
       ring.middleware.session/wrap-session
       (wrap-restful-format :formats [:edn :json-kw])
-      wrap-time-limit
       #_wrap-stacktrace
       wrap-content-type
       wrap-gzip
